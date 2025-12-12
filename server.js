@@ -200,7 +200,7 @@ app.get('/api/stats/user/:userId', async (req, res) => {
         const userId = req.params.userId;
         const result = await proxyRequest(
             'GET',
-            `https://pixassistindo.thm.app.br/api/stats/user/${userId}`,
+            `https://monetag-postback-server-production.up.railway.app/api/stats/user/${userId}`,
             {
                 'User-Agent': 'okhttp/4.11.0'
             }
