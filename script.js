@@ -19,11 +19,11 @@ class PixAssistindoManager {
         this.updateUI();
         this.loadRewardsConfig();
         
-        // Iniciar timer de reset ANTES da validação
+        // Iniciar timer de reset
         this.startSessionTimer();
         
-        // Validar acesso por último (pode redirecionar)
-        this.validateAccess();
+        // Validar acesso de forma assíncrona após inicialização
+        setTimeout(() => this.validateAccess(), 100);
     }
 
     initializeElements() {
