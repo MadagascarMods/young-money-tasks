@@ -189,35 +189,45 @@ Error generating stack: `+l.message+`
 
 </html>
     
-    <!-- Timer de Reset Automático -->
+    <!-- Timer de Verificação de Sessão -->
     <script>
-      // Função para resetar sessões expiradas
-      async function resetExpiredSessions() {
+      // Função para verificar se a sessão do usuário atual expirou
+      async function checkSessionExpired() {
         try {
-          console.log('[RESET] Chamando API reset-expired...');
-          const response = await fetch('/api/reset-expired');
+          // Obter userId do Telegram WebApp
+          const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+          
+          if (!userId) {
+            console.log('[SESSION] userId não encontrado, pulando verificação');
+            return;
+          }
+          
+          console.log('[SESSION] Verificando sessão do usuário:', userId);
+          const response = await fetch(`/api/stats/user/${userId}`);
           const data = await response.json();
           
-          console.log('[RESET] Resposta:', data);
+          console.log('[SESSION] Status:', data);
           
-          if (data.success && data.users_reset > 0) {
-            console.log(`[RESET] ✅ ${data.users_reset} usuário(s) resetado(s)`);
-            // Recarregar a página para atualizar os dados
+          // SÓ recarregar se a sessão expirou
+          if (data.session_expired === true) {
+            console.log('[SESSION] ⚠️ Sessão expirada! Recarregando página...');
             window.location.reload();
           } else {
-            console.log('[RESET] Nenhum usuário resetado');
+            console.log('[SESSION] ✅ Sessão ativa');
           }
         } catch (error) {
-          console.error('[RESET] Erro ao resetar sessões:', error);
+          console.error('[SESSION] Erro ao verificar sessão:', error);
         }
       }
       
-      // Executar imediatamente ao carregar
+      // Executar a cada 5 minutos
       window.addEventListener('DOMContentLoaded', () => {
-        console.log('[RESET] Timer iniciado - verificará a cada 5 minutos');
-        resetExpiredSessions();
+        console.log('[SESSION] Timer iniciado - verificará a cada 5 minutos');
         
-        // Executar a cada 60 segundos
-        setInterval(resetExpiredSessions, 300000);
+        // Verificar imediatamente
+        checkSessionExpired();
+        
+        // Verificar a cada 5 minutos
+        setInterval(checkSessionExpired, 300000);
       });
     </script>
