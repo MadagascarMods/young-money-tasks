@@ -15,6 +15,7 @@ class PixAssistindoManager {
         this.initializeElements();
         this.bindEvents();
         this.loadSettings();
+        this.loadURLParameters();
         this.updateUI();
         this.loadRewardsConfig();
     }
@@ -100,6 +101,27 @@ class PixAssistindoManager {
             }
         } catch (error) {
             console.error('Erro ao carregar configurações:', error);
+        }
+    }
+
+    loadURLParameters() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const email = params.get('email');
+            const userId = params.get('userId');
+            
+            if (email) {
+                this.emailInput.value = decodeURIComponent(email);
+                localStorage.setItem('user_email', email);
+                console.log('[URL PARAMS] Email carregado da URL:', email);
+            }
+            
+            if (userId) {
+                localStorage.setItem('user_id', userId);
+                console.log('[URL PARAMS] UserId carregado da URL:', userId);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar parametros de URL:', error);
         }
     }
 
