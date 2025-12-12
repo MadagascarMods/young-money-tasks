@@ -1,5 +1,8 @@
 class PixAssistindoManager {
     constructor() {
+        // Validar acesso antes de inicializar
+        this.validateAccess();
+        
         this.isRunning = false;
         this.intervalId = null;
         this.stats = {
@@ -11,19 +14,15 @@ class PixAssistindoManager {
         this.autoScroll = true;
         this.currentUserData = null;
         this.rewardsConfig = null;
-        
-        // Sistema de bloqueio de múltiplas sessões
-        this.sessionId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-        this.sessionChannel = new BroadcastChannel('pix_assistindo_session');
-        this.isSessionActive = false;
+        this.sessionStartTime = Date.now();
+        this.timerIntervalId = null;
         
         this.initializeElements();
+        this.startSessionTimer();
         this.bindEvents();
         this.loadSettings();
-        this.loadURLParameters();
         this.updateUI();
         this.loadRewardsConfig();
-        this.startResetCheckTimer();
     }
 
     initializeElements() {
@@ -37,8 +36,6 @@ class PixAssistindoManager {
         this.startBtn = document.getElementById('startBtn');
         this.stopBtn = document.getElementById('stopBtn');
         this.clearBtn = document.getElementById('clearBtn');
-        this.manualBtn = document.getElementById('manualBtn');
-        if (this.manualBtn) this.manualBtn.disabled = true;
         this.autoScrollBtn = document.getElementById('autoScrollBtn');
         
         // Status elements
@@ -69,7 +66,6 @@ class PixAssistindoManager {
         this.startBtn.addEventListener('click', () => this.start());
         this.stopBtn.addEventListener('click', () => this.stop());
         this.clearBtn.addEventListener('click', () => this.clearLog());
-        this.manualBtn.addEventListener('click', () => this.watchAdManual());
         this.autoScrollBtn.addEventListener('click', () => this.toggleAutoScroll());
 
         // Save settings on input change
@@ -110,27 +106,6 @@ class PixAssistindoManager {
         }
     }
 
-    loadURLParameters() {
-        try {
-            const params = new URLSearchParams(window.location.search);
-            const email = params.get('email');
-            const userId = params.get('userId');
-            
-            if (email) {
-                this.emailInput.value = decodeURIComponent(email);
-                localStorage.setItem('user_email', email);
-                console.log('[URL PARAMS] Email carregado da URL:', email);
-            }
-            
-            if (userId) {
-                localStorage.setItem('user_id', userId);
-                console.log('[URL PARAMS] UserId carregado da URL:', userId);
-            }
-        } catch (error) {
-            console.error('Erro ao carregar parametros de URL:', error);
-        }
-    }
-
     validateInputs() {
         const email = this.emailInput.value.trim();
 
@@ -168,172 +143,8 @@ class PixAssistindoManager {
         }
     }
 
-
-    // Sistema de bloqueio de múltiplas sessões
-    initSessionControl() {
-        // Verificar se já existe uma sessão ativa
-        const activeSession = localStorage.getItem('active_bot_session');
-        const activeSessionTime = localStorage.getItem('active_bot_session_time');
-        
-        if (activeSession && activeSessionTime) {
-            const timeDiff = Date.now() - parseInt(activeSessionTime);
-            // Se a sessão tem menos de 5 segundos, considerar ativa
-            if (timeDiff < 5000) {
-                this.addLog('error', '❌ Bot já está rodando em outra aba/navegador!');
-                this.addLog('warning', '⚠️ Feche a outra sessão antes de iniciar aqui.');
-                return false;
-            }
-        }
-        
-        // Registrar esta sessão como ativa
-        localStorage.setItem('active_bot_session', this.sessionId);
-        localStorage.setItem('active_bot_session_time', Date.now().toString());
-        this.isSessionActive = true;
-        
-        // Atualizar timestamp a cada 2 segundos
-        this.sessionHeartbeat = setInterval(() => {
-            if (this.isRunning) {
-                localStorage.setItem('active_bot_session_time', Date.now().toString());
-            }
-        }, 2000);
-        
-        // Escutar mensagens de outras abas
-        this.sessionChannel.onmessage = (event) => {
-            if (event.data.type === 'session_check' && event.data.sessionId !== this.sessionId) {
-                if (this.isRunning) {
-                    // Informar que esta sessão está ativa
-                    this.sessionChannel.postMessage({
-                        type: 'session_active',
-                        sessionId: this.sessionId
-                    });
-                }
-            }
-            
-            if (event.data.type === 'session_active' && event.data.sessionId !== this.sessionId) {
-                if (this.isRunning) {
-                    // Outra sessão está ativa, parar esta
-                    this.addLog('error', '❌ Detectada sessão ativa em outra aba!');
-                    this.stop();
-                }
-            }
-        };
-        
-        return true;
-    }
-    
-    checkForOtherSessions() {
-        // Enviar mensagem para verificar outras sessões
-        this.sessionChannel.postMessage({
-            type: 'session_check',
-            sessionId: this.sessionId
-        });
-        
-        // Aguardar resposta por 500ms
-        return new Promise((resolve) => {
-            let hasOtherSession = false;
-            
-            const listener = (event) => {
-                if (event.data.type === 'session_active' && event.data.sessionId !== this.sessionId) {
-                    hasOtherSession = true;
-                }
-            };
-            
-            this.sessionChannel.addEventListener('message', listener);
-            
-            setTimeout(() => {
-                this.sessionChannel.removeEventListener('message', listener);
-                resolve(hasOtherSession);
-            }, 500);
-        });
-    }
-    
-    clearSession() {
-        if (this.isSessionActive) {
-            const activeSession = localStorage.getItem('active_bot_session');
-            if (activeSession === this.sessionId) {
-                localStorage.removeItem('active_bot_session');
-                localStorage.removeItem('active_bot_session_time');
-            }
-            this.isSessionActive = false;
-        }
-        
-        if (this.sessionHeartbeat) {
-            clearInterval(this.sessionHeartbeat);
-            this.sessionHeartbeat = null;
-        }
-    }
-
-
-    // Sistema ROBUSTO de bloqueio de múltiplas abas
-    startTabLockMonitor() {
-        // Verificar a cada 1 segundo se há outra aba rodando
-        this.lockCheckInterval = setInterval(() => {
-            if (this.isRunning) {
-                const activeLock = localStorage.getItem('bot_active_lock');
-                const lockTime = localStorage.getItem('bot_lock_time');
-                
-                if (activeLock && activeLock !== this.tabId) {
-                    // Outra aba está rodando
-                    const timeDiff = Date.now() - parseInt(lockTime || '0');
-                    if (timeDiff < 3000) {
-                        // Lock ainda válido, parar esta aba
-                        this.addLog('error', '❌ Outra aba assumiu o controle do bot!');
-                        this.forceStop();
-                    }
-                }
-                
-                // Renovar nosso lock
-                localStorage.setItem('bot_active_lock', this.tabId);
-                localStorage.setItem('bot_lock_time', Date.now().toString());
-            }
-        }, 1000);
-    }
-    
-    acquireLock() {
-        const activeLock = localStorage.getItem('bot_active_lock');
-        const lockTime = localStorage.getItem('bot_lock_time');
-        
-        if (activeLock && lockTime) {
-            const timeDiff = Date.now() - parseInt(lockTime);
-            if (timeDiff < 3000) {
-                // Lock ainda válido
-                this.addLog('error', '❌ Bot já está rodando em outra aba!');
-                this.addLog('warning', '⚠️ Feche a outra aba antes de iniciar aqui.');
-                return false;
-            }
-        }
-        
-        // Adquirir lock
-        localStorage.setItem('bot_active_lock', this.tabId);
-        localStorage.setItem('bot_lock_time', Date.now().toString());
-        return true;
-    }
-    
-    releaseLock() {
-        const activeLock = localStorage.getItem('bot_active_lock');
-        if (activeLock === this.tabId) {
-            localStorage.removeItem('bot_active_lock');
-            localStorage.removeItem('bot_lock_time');
-        }
-    }
-    
-    forceStop() {
-        if (this.intervalId) {
-            clearInterval(this.intervalId);
-            this.intervalId = null;
-        }
-        this.isRunning = false;
-        this.releaseLock();
-        this.updateUI();
-    }
-
     async start() {
         if (!this.validateInputs()) {
-            return;
-        }
-        
-        // Tentar adquirir lock
-        if (!this.acquireLock()) {
             return;
         }
 
@@ -749,11 +560,66 @@ class PixAssistindoManager {
         this.autoScrollBtn.textContent = this.autoScroll ? 'Auto Scroll' : 'Manual Scroll';
     }
 
+    async startSessionTimer() {
+        const timerElement = document.getElementById('sessionTimer');
+        if (!timerElement) return;
+        
+        // Buscar userId da URL ou localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('userId') || localStorage.getItem('user_id');
+        
+        if (!userId) {
+            console.error('[TIMER] userId não encontrado na URL ou localStorage');
+            timerElement.textContent = '00:00:00';
+            return;
+        }
+        
+        console.log('[TIMER] Usando userId:', userId);
+        console.log('[TIMER] API de verificação:', `/api/stats/user/${userId}`);
+        
+        const updateTimer = async () => {
+            try {
+                // Buscar time_remaining do servidor Railway
+                const response = await fetch(`/api/stats/user/${userId}`);
+                const data = await response.json();
+                
+                const timeRemaining = data.time_remaining || 0;
+                const impressions = data.total_impressions || 0;
+                const clicks = data.total_clicks || 0;
+                const sessionExpired = data.session_expired || false;
+                
+                console.log(`[PIX TIMER] Dados recebidos: ${impressions} impressões, ${clicks} cliques, ${timeRemaining}s restantes, expirado=${sessionExpired}`);
+                
+                const hours = Math.floor(timeRemaining / 3600);
+                const minutes = Math.floor((timeRemaining % 3600) / 60);
+                const seconds = timeRemaining % 60;
+                
+                timerElement.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                
+                // Se dados foram resetados (impressões e cliques voltaram para 0) OU sessão expirou, redirecionar
+                if ((impressions === 0 && clicks === 0) || sessionExpired) {
+                    console.log('[PIX] Dados resetados! Redirecionando para Young Money...');
+                    localStorage.removeItem('user_logged_in');
+                    localStorage.removeItem('user_id');
+                    localStorage.removeItem('user_email');
+                    window.location.href = '/';
+                    return;
+                }
+            } catch (error) {
+                console.error('[TIMER] Erro ao buscar time_remaining:', error);
+                timerElement.textContent = '--:--:--';
+            }
+        };
+        
+        // Atualizar imediatamente e depois a cada 1 minuto
+        updateTimer();
+        this.timerIntervalId = setInterval(updateTimer, 60000); // 60000ms = 1 minuto
+    }
+
     updateUI() {
         // Atualizar botões
         this.startBtn.disabled = this.isRunning;
         this.stopBtn.disabled = !this.isRunning;
-        // this.manualBtn.disabled = this.isRunning; // Mantido desabilitado
         
         // Atualizar inputs
         this.emailInput.disabled = this.isRunning;
@@ -770,118 +636,63 @@ class PixAssistindoManager {
         }
     }
 
-
-
-    // Timer de sessão com verificação de reset
-    async startSessionTimer() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const userId = urlParams.get('userId') || localStorage.getItem('user_id');
-        
-        if (!userId) {
-            console.error('[TIMER] userId não encontrado');
-            return;
-        }
-        
-        console.log('[TIMER] Iniciado para userId:', userId);
-        
-        const updateTimer = async () => {
-            try {
-                const response = await fetch(`/api/stats/user/${userId}`);
-                const data = await response.json();
-                
-                const timeRemaining = data.time_remaining || 0;
-                const impressions = data.total_impressions || 0;
-                const clicks = data.total_clicks || 0;
-                const sessionExpired = data.session_expired || false;
-                
-                console.log(`[TIMER] ${impressions} impressões, ${clicks} cliques, ${timeRemaining}s restantes, expirado=${sessionExpired}`);
-                
-                // Se dados foram resetados (impressões e cliques voltaram para 0) OU sessão expirou, redirecionar
-                if ((impressions === 0 && clicks === 0) || sessionExpired) {
-                    console.log('[TIMER] ⚠️ Dados resetados! Redirecionando...');
-                    
-                    if (this.isRunning) {
-                        this.forceStop();
-                    }
-                    
-                    localStorage.removeItem('user_logged_in');
-                    localStorage.removeItem('user_id');
-                    localStorage.removeItem('user_email');
-                    this.releaseLock();
-                    
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 1000);
-                }
-            } catch (error) {
-                console.error('[TIMER] Erro ao verificar:', error);
-            }
-        };
-        
-        // Atualizar imediatamente e depois a cada 1 minuto
-        updateTimer();
-        this.timerIntervalId = setInterval(updateTimer, 60000); // 60 segundos
-    }
-    
-    // Validação de acesso inicial
     async validateAccess() {
         console.log('[VALIDAÇÃO] Verificando se usuário completou tarefas...');
         
+        // Pegar userId da URL ou localStorage
         const urlParams = new URLSearchParams(window.location.search);
         const userIdFromUrl = urlParams.get('userId');
         const storedUserId = localStorage.getItem('user_id');
         const userId = userIdFromUrl || storedUserId;
         
         if (!userId) {
-            console.log('[VALIDAÇÃO] ❌ User ID não encontrado');
+            console.log('[VALIDAÇÃO] ❌ User ID não encontrado - redirecionando para login');
             alert('Você precisa fazer login primeiro!');
             window.location.href = '/';
             return;
         }
         
         try {
-            const response = await fetch(`/api/stats/user/${userId}`);
+            // Buscar stats do usuário no backend usando userId
+            const apiUrl = `/api/stats/user/${userId}`;
+            console.log('[VALIDAÇÃO] Consultando API:', apiUrl);
+            
+            const response = await fetch(apiUrl);
             
             if (!response.ok) {
-                throw new Error(`Erro ao buscar stats: ${response.status}`);
+                throw new Error(`Erro ao buscar stats: ${response.status} ${response.statusText}`);
             }
             
             const data = await response.json();
             console.log('[VALIDAÇÃO] Resposta da API:', data);
             
+            // Verificar se completou as tarefas (20 impressões + 8 cliques)
             const impressions = data.total_impressions || 0;
             const clicks = data.total_clicks || 0;
             
             console.log(`[VALIDAÇÃO] Progresso: ${impressions}/20 impressões, ${clicks}/8 cliques`);
             
-            // Verificar se completou as tarefas (20 impressões + 8 cliques)
             if (impressions < 20 || clicks < 8) {
                 console.log(`[VALIDAÇÃO] ❌ Tarefas incompletas`);
-                alert(`Você precisa completar as tarefas primeiro!
-
-Progresso atual:
-- Impressões: ${impressions}/20
-- Cliques: ${clicks}/8`);
+                alert(`Você precisa completar as tarefas primeiro!\n\nProgresso atual:\n- Impressões: ${impressions}/20\n- Cliques: ${clicks}/8`);
                 window.location.href = '/';
                 return;
             }
             
             console.log('[VALIDAÇÃO] ✅ Tarefas completas - acesso permitido');
         } catch (error) {
-            console.error('[VALIDAÇÃO] ❌ Erro:', error);
+            console.error('[VALIDAÇÃO] ❌ Erro ao validar acesso:', error);
             alert('Erro ao verificar seu progresso. Tente novamente.');
             window.location.href = '/';
         }
     }
-
+    
     updateStats() {
         this.requestCount.textContent = this.stats.requests;
         this.successCount.textContent = this.stats.successes;
         this.errorCount.textContent = this.stats.errors;
         this.totalEarnings.textContent = `R$ ${this.stats.totalEarnings.toFixed(5)}`;
     }
-
-
 }
 
 // Inicializar aplicação quando DOM estiver carregado
