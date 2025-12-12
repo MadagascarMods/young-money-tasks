@@ -216,6 +216,27 @@ app.get('/api/stats/user/:userId', async (req, res) => {
     }
 });
 
+// Proxy para /api/reset-expired
+app.get('/api/reset-expired', async (req, res) => {
+    try {
+        const result = await proxyRequest(
+            'GET',
+            'https://monetag-postback-server-production.up.railway.app/api/reset-expired',
+            {
+                'User-Agent': 'okhttp/4.11.0'
+            }
+        );
+        
+        res.status(result.status)
+            .set('Access-Control-Allow-Origin', '*')
+            .set('Content-Type', 'application/json')
+            .send(result.body);
+    } catch (error) {
+        console.error('Erro ao resetar sessões expiradas:', error);
+        res.status(500).json({ error: 'Erro ao resetar sessões expiradas' });
+    }
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
     console.log(`Servidor rodando em http://localhost:${PORT}`);

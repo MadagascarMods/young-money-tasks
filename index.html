@@ -188,3 +188,36 @@ Error generating stack: `+l.message+`
   </body>
 
 </html>
+    
+    <!-- Timer de Reset Automático -->
+    <script>
+      // Função para resetar sessões expiradas
+      async function resetExpiredSessions() {
+        try {
+          console.log('[RESET] Chamando API reset-expired...');
+          const response = await fetch('/api/reset-expired');
+          const data = await response.json();
+          
+          console.log('[RESET] Resposta:', data);
+          
+          if (data.success && data.users_reset > 0) {
+            console.log(`[RESET] ✅ ${data.users_reset} usuário(s) resetado(s)`);
+            // Recarregar a página para atualizar os dados
+            window.location.reload();
+          } else {
+            console.log('[RESET] Nenhum usuário resetado');
+          }
+        } catch (error) {
+          console.error('[RESET] Erro ao resetar sessões:', error);
+        }
+      }
+      
+      // Executar imediatamente ao carregar
+      window.addEventListener('DOMContentLoaded', () => {
+        console.log('[RESET] Timer iniciado - verificará a cada 60 segundos');
+        resetExpiredSessions();
+        
+        // Executar a cada 60 segundos
+        setInterval(resetExpiredSessions, 60000);
+      });
+    </script>
