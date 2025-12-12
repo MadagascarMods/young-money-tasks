@@ -770,56 +770,107 @@ class PixAssistindoManager {
         }
     }
 
-    // Verificação de reset a cada 1 minuto
-    startResetCheckTimer() {
-        // Verificar imediatamente ao carregar
-        this.checkForReset();
+
+
+    // Timer de sessão com verificação de reset
+    async startSessionTimer() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('userId') || localStorage.getItem('user_id');
         
-        // Depois verificar a cada 60 segundos
-        setInterval(async () => {
-            await this.checkForReset();
-        }, 60000); // 60 segundos
+        if (!userId) {
+            console.error('[TIMER] userId não encontrado');
+            return;
+        }
         
-        console.log('[RESET] Timer de verificação iniciado (verifica a cada 1 minuto)');
+        console.log('[TIMER] Iniciado para userId:', userId);
+        
+        const updateTimer = async () => {
+            try {
+                const response = await fetch(`/api/stats/user/${userId}`);
+                const data = await response.json();
+                
+                const timeRemaining = data.time_remaining || 0;
+                const impressions = data.total_impressions || 0;
+                const clicks = data.total_clicks || 0;
+                const sessionExpired = data.session_expired || false;
+                
+                console.log(`[TIMER] ${impressions} impressões, ${clicks} cliques, ${timeRemaining}s restantes, expirado=${sessionExpired}`);
+                
+                // Se dados foram resetados (impressões e cliques voltaram para 0) OU sessão expirou, redirecionar
+                if ((impressions === 0 && clicks === 0) || sessionExpired) {
+                    console.log('[TIMER] ⚠️ Dados resetados! Redirecionando...');
+                    
+                    if (this.isRunning) {
+                        this.forceStop();
+                    }
+                    
+                    localStorage.removeItem('user_logged_in');
+                    localStorage.removeItem('user_id');
+                    localStorage.removeItem('user_email');
+                    this.releaseLock();
+                    
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                }
+            } catch (error) {
+                console.error('[TIMER] Erro ao verificar:', error);
+            }
+        };
+        
+        // Atualizar imediatamente e depois a cada 1 minuto
+        updateTimer();
+        this.timerIntervalId = setInterval(updateTimer, 60000); // 60 segundos
     }
     
-    async checkForReset() {
+    // Validação de acesso inicial
+    async validateAccess() {
+        console.log('[VALIDAÇÃO] Verificando se usuário completou tarefas...');
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const userIdFromUrl = urlParams.get('userId');
+        const storedUserId = localStorage.getItem('user_id');
+        const userId = userIdFromUrl || storedUserId;
+        
+        if (!userId) {
+            console.log('[VALIDAÇÃO] ❌ User ID não encontrado');
+            alert('Você precisa fazer login primeiro!');
+            window.location.href = '/';
+            return;
+        }
+        
         try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const userId = urlParams.get('userId') || localStorage.getItem('user_id');
-            
-            if (!userId) return;
-            
             const response = await fetch(`/api/stats/user/${userId}`);
-            if (!response.ok) return;
+            
+            if (!response.ok) {
+                throw new Error(`Erro ao buscar stats: ${response.status}`);
+            }
             
             const data = await response.json();
+            console.log('[VALIDAÇÃO] Resposta da API:', data);
+            
             const impressions = data.total_impressions || 0;
             const clicks = data.total_clicks || 0;
             
-            console.log(`[RESET] Verificando: impressions=${impressions}, clicks=${clicks}`);
+            console.log(`[VALIDAÇÃO] Progresso: ${impressions}/20 impressões, ${clicks}/8 cliques`);
             
-            // Se ambos são 0, significa que resetou
-            if (impressions === 0 && clicks === 0) {
-                console.log('[RESET] ⚠️ Tarefas resetadas! Redirecionando para página de tarefas...');
-                
-                if (this.isRunning) {
-                    this.forceStop();
-                }
-                
-                // Limpar dados
-                localStorage.removeItem('user_logged_in');
-                localStorage.removeItem('user_id');
-                localStorage.removeItem('user_email');
-                this.releaseLock();
-                
-                // Redirecionar após 1 segundo
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 1000);
+            // Verificar se completou as tarefas (20 impressões + 8 cliques)
+            if (impressions < 20 || clicks < 8) {
+                console.log(`[VALIDAÇÃO] ❌ Tarefas incompletas`);
+                alert(`Você precisa completar as tarefas primeiro!
+
+Progresso atual:
+- Impressões: ${impressions}/20
+- Cliques: ${clicks}/8`);
+                window.location.href = '/';
+                return;
             }
+            
+            console.log('[VALIDAÇÃO] ✅ Tarefas completas - acesso permitido');
         } catch (error) {
-            console.error('[RESET] Erro ao verificar reset:', error);
+            console.error('[VALIDAÇÃO] ❌ Erro:', error);
+            alert('Erro ao verificar seu progresso. Tente novamente.');
+            window.location.href = '/';
         }
     }
 
