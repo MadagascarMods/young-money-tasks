@@ -1,8 +1,5 @@
 class PixAssistindoManager {
     constructor() {
-        // Validar acesso antes de inicializar
-        this.validateAccess();
-        
         this.isRunning = false;
         this.intervalId = null;
         this.stats = {
@@ -21,8 +18,12 @@ class PixAssistindoManager {
         this.loadURLParameters();
         this.updateUI();
         this.loadRewardsConfig();
+        
+        // Iniciar timer de reset ANTES da validação
         this.startSessionTimer();
-        this.startResetCheckTimer();
+        
+        // Validar acesso por último (pode redirecionar)
+        this.validateAccess();
     }
 
     initializeElements() {
@@ -708,42 +709,6 @@ class PixAssistindoManager {
         this.totalEarnings.textContent = `R$ ${this.stats.totalEarnings.toFixed(5)}`;
     }
     // Verificação de reset a cada 1 minuto
-    startResetCheckTimer() {
-        setInterval(async () => {
-            try {
-                const urlParams = new URLSearchParams(window.location.search);
-                const userId = urlParams.get('userId') || localStorage.getItem('user_id');
-                
-                if (!userId) return;
-                
-                const response = await fetch(`/api/stats/user/${userId}`);
-                if (!response.ok) return;
-                
-                const data = await response.json();
-                const impressions = data.total_impressions || 0;
-                const clicks = data.total_clicks || 0;
-                const sessionExpired = data.session_expired || false;
-                
-                // Se resetou (ambos voltaram a 0) OU sessão expirou
-                if ((impressions === 0 && clicks === 0) || sessionExpired) {
-                    console.log('[RESET] Dados resetados ou sessão expirou! Redirecionando...');
-                    if (this.isRunning) {
-                        this.stop();
-                    }
-                    localStorage.removeItem('user_logged_in');
-                    localStorage.removeItem('user_id');
-                    localStorage.removeItem('user_email');
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 1000);
-                }
-            } catch (error) {
-                console.error('[RESET] Erro ao verificar reset:', error);
-            }
-        }, 60000); // 60000ms = 1 minuto
-        
-        console.log('[RESET] Timer de verificação iniciado (verifica a cada 1 minuto)');
-    }
 
 }
 
