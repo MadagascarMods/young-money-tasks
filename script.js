@@ -640,8 +640,72 @@ class PixAssistindoManager {
             
             if (impressions < 20 || clicks < 8) {
                 console.log(`[VALIDAÇÃO] ❌ Tarefas incompletas`);
-                alert(`Você precisa completar as tarefas primeiro!\n\nProgresso atual:\n- Impressões: ${impressions}/20\n- Cliques: ${clicks}/8`);
-                window.location.href = '/';
+                
+                // Mostrar popup personalizado
+                const popup = document.createElement('div');
+                popup.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: white;
+                    padding: 30px;
+                    border-radius: 12px;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                    z-index: 10000;
+                    max-width: 400px;
+                    font-family: Arial, sans-serif;
+                `;
+                
+                popup.innerHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">
+                            ${window.location.hostname}
+                        </div>
+                        <div style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 15px;">
+                            Você precisa completar as tarefas primeiro!
+                        </div>
+                        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">
+                            Progresso atual:
+                        </div>
+                        <div style="font-size: 14px; color: #333; line-height: 1.6;">
+                            - Impressões: ${impressions}/20<br>
+                            - Cliques: ${clicks}/8
+                        </div>
+                    </div>
+                    <button id="popupOkBtn" style="
+                        background: #2d5f3f;
+                        color: white;
+                        border: none;
+                        padding: 12px 40px;
+                        border-radius: 25px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: bold;
+                        float: right;
+                    ">OK</button>
+                `;
+                
+                document.body.appendChild(popup);
+                
+                // Adicionar overlay escuro
+                const overlay = document.createElement('div');
+                overlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.5);
+                    z-index: 9999;
+                `;
+                document.body.appendChild(overlay);
+                
+                // Botão OK redireciona
+                document.getElementById('popupOkBtn').onclick = () => {
+                    window.location.href = '/';
+                };
+                
                 return;
             }
             
