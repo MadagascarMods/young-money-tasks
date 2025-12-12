@@ -216,11 +216,6 @@ app.get('/api/stats/user/:userId', async (req, res) => {
     }
 });
 
-// Servir index.html para rotas não encontradas (SPA)
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
 // Iniciar servidor
 app.listen(PORT, () => {
     console.log(`Servidor rodando em http://localhost:${PORT}`);
