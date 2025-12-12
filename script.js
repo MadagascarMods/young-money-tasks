@@ -14,15 +14,15 @@ class PixAssistindoManager {
         this.autoScroll = true;
         this.currentUserData = null;
         this.rewardsConfig = null;
-        this.sessionStartTime = Date.now();
-        this.timerIntervalId = null;
         
         this.initializeElements();
-        this.startSessionTimer();
         this.bindEvents();
         this.loadSettings();
+        this.loadURLParameters();
         this.updateUI();
         this.loadRewardsConfig();
+        this.startSessionTimer();
+        this.startResetCheckTimer();
     }
 
     initializeElements() {
@@ -36,6 +36,8 @@ class PixAssistindoManager {
         this.startBtn = document.getElementById('startBtn');
         this.stopBtn = document.getElementById('stopBtn');
         this.clearBtn = document.getElementById('clearBtn');
+        this.manualBtn = document.getElementById('manualBtn');
+        if (this.manualBtn) this.manualBtn.disabled = true;
         this.autoScrollBtn = document.getElementById('autoScrollBtn');
         
         // Status elements
@@ -66,6 +68,7 @@ class PixAssistindoManager {
         this.startBtn.addEventListener('click', () => this.start());
         this.stopBtn.addEventListener('click', () => this.stop());
         this.clearBtn.addEventListener('click', () => this.clearLog());
+        this.manualBtn.addEventListener('click', () => this.watchAdManual());
         this.autoScrollBtn.addEventListener('click', () => this.toggleAutoScroll());
 
         // Save settings on input change
@@ -103,6 +106,27 @@ class PixAssistindoManager {
             }
         } catch (error) {
             console.error('Erro ao carregar configurações:', error);
+        }
+    }
+
+    loadURLParameters() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const email = params.get('email');
+            const userId = params.get('userId');
+            
+            if (email) {
+                this.emailInput.value = decodeURIComponent(email);
+                localStorage.setItem('user_email', email);
+                console.log('[URL PARAMS] Email carregado da URL:', email);
+            }
+            
+            if (userId) {
+                localStorage.setItem('user_id', userId);
+                console.log('[URL PARAMS] UserId carregado da URL:', userId);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar parametros de URL:', error);
         }
     }
 
@@ -560,66 +584,11 @@ class PixAssistindoManager {
         this.autoScrollBtn.textContent = this.autoScroll ? 'Auto Scroll' : 'Manual Scroll';
     }
 
-    async startSessionTimer() {
-        const timerElement = document.getElementById('sessionTimer');
-        if (!timerElement) return;
-        
-        // Buscar userId da URL ou localStorage
-        const urlParams = new URLSearchParams(window.location.search);
-        const userId = urlParams.get('userId') || localStorage.getItem('user_id');
-        
-        if (!userId) {
-            console.error('[TIMER] userId não encontrado na URL ou localStorage');
-            timerElement.textContent = '00:00:00';
-            return;
-        }
-        
-        console.log('[TIMER] Usando userId:', userId);
-        console.log('[TIMER] API de verificação:', `/api/stats/user/${userId}`);
-        
-        const updateTimer = async () => {
-            try {
-                // Buscar time_remaining do servidor Railway
-                const response = await fetch(`/api/stats/user/${userId}`);
-                const data = await response.json();
-                
-                const timeRemaining = data.time_remaining || 0;
-                const impressions = data.total_impressions || 0;
-                const clicks = data.total_clicks || 0;
-                const sessionExpired = data.session_expired || false;
-                
-                console.log(`[PIX TIMER] Dados recebidos: ${impressions} impressões, ${clicks} cliques, ${timeRemaining}s restantes, expirado=${sessionExpired}`);
-                
-                const hours = Math.floor(timeRemaining / 3600);
-                const minutes = Math.floor((timeRemaining % 3600) / 60);
-                const seconds = timeRemaining % 60;
-                
-                timerElement.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-                
-                // Se dados foram resetados (impressões e cliques voltaram para 0) OU sessão expirou, redirecionar
-                if ((impressions === 0 && clicks === 0) || sessionExpired) {
-                    console.log('[PIX] Dados resetados! Redirecionando para Young Money...');
-                    localStorage.removeItem('user_logged_in');
-                    localStorage.removeItem('user_id');
-                    localStorage.removeItem('user_email');
-                    window.location.href = '/';
-                    return;
-                }
-            } catch (error) {
-                console.error('[TIMER] Erro ao buscar time_remaining:', error);
-                timerElement.textContent = '--:--:--';
-            }
-        };
-        
-        // Atualizar imediatamente e depois a cada 1 minuto
-        updateTimer();
-        this.timerIntervalId = setInterval(updateTimer, 60000); // 60000ms = 1 minuto
-    }
-
     updateUI() {
         // Atualizar botões
         this.startBtn.disabled = this.isRunning;
         this.stopBtn.disabled = !this.isRunning;
+        // this.manualBtn.disabled = this.isRunning; // Mantido desabilitado
         
         // Atualizar inputs
         this.emailInput.disabled = this.isRunning;
@@ -636,37 +605,33 @@ class PixAssistindoManager {
         }
     }
 
+
+    // Validação de acesso - verifica se completou tarefas
     async validateAccess() {
         console.log('[VALIDAÇÃO] Verificando se usuário completou tarefas...');
         
-        // Pegar userId da URL ou localStorage
         const urlParams = new URLSearchParams(window.location.search);
         const userIdFromUrl = urlParams.get('userId');
         const storedUserId = localStorage.getItem('user_id');
         const userId = userIdFromUrl || storedUserId;
         
         if (!userId) {
-            console.log('[VALIDAÇÃO] ❌ User ID não encontrado - redirecionando para login');
+            console.log('[VALIDAÇÃO] ❌ User ID não encontrado');
             alert('Você precisa fazer login primeiro!');
             window.location.href = '/';
             return;
         }
         
         try {
-            // Buscar stats do usuário no backend usando userId
-            const apiUrl = `/api/stats/user/${userId}`;
-            console.log('[VALIDAÇÃO] Consultando API:', apiUrl);
-            
-            const response = await fetch(apiUrl);
+            const response = await fetch(`/api/stats/user/${userId}`);
             
             if (!response.ok) {
-                throw new Error(`Erro ao buscar stats: ${response.status} ${response.statusText}`);
+                throw new Error(`Erro ao buscar stats: ${response.status}`);
             }
             
             const data = await response.json();
             console.log('[VALIDAÇÃO] Resposta da API:', data);
             
-            // Verificar se completou as tarefas (20 impressões + 8 cliques)
             const impressions = data.total_impressions || 0;
             const clicks = data.total_clicks || 0;
             
@@ -681,18 +646,105 @@ class PixAssistindoManager {
             
             console.log('[VALIDAÇÃO] ✅ Tarefas completas - acesso permitido');
         } catch (error) {
-            console.error('[VALIDAÇÃO] ❌ Erro ao validar acesso:', error);
+            console.error('[VALIDAÇÃO] ❌ Erro:', error);
             alert('Erro ao verificar seu progresso. Tente novamente.');
             window.location.href = '/';
         }
     }
     
+    // Timer de sessão - verifica reset a cada 1 minuto
+    async startSessionTimer() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('userId') || localStorage.getItem('user_id');
+        
+        if (!userId) {
+            console.error('[TIMER] userId não encontrado');
+            return;
+        }
+        
+        console.log('[TIMER] Iniciado para userId:', userId);
+        
+        const updateTimer = async () => {
+            try {
+                const response = await fetch(`/api/stats/user/${userId}`);
+                const data = await response.json();
+                
+                const impressions = data.total_impressions || 0;
+                const clicks = data.total_clicks || 0;
+                const sessionExpired = data.session_expired || false;
+                
+                console.log(`[TIMER] ${impressions} impressões, ${clicks} cliques, expirado=${sessionExpired}`);
+                
+                // Se resetou OU sessão expirou
+                if ((impressions === 0 && clicks === 0) || sessionExpired) {
+                    console.log('[TIMER] ⚠️ Dados resetados! Redirecionando...');
+                    
+                    if (this.isRunning) {
+                        this.stop();
+                    }
+                    
+                    localStorage.removeItem('user_logged_in');
+                    localStorage.removeItem('user_id');
+                    localStorage.removeItem('user_email');
+                    
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                }
+            } catch (error) {
+                console.error('[TIMER] Erro ao verificar:', error);
+            }
+        };
+        
+        // Atualizar imediatamente e depois a cada 1 minuto
+        updateTimer();
+        setInterval(updateTimer, 60000); // 60 segundos
+    }
+
     updateStats() {
         this.requestCount.textContent = this.stats.requests;
         this.successCount.textContent = this.stats.successes;
         this.errorCount.textContent = this.stats.errors;
         this.totalEarnings.textContent = `R$ ${this.stats.totalEarnings.toFixed(5)}`;
     }
+    // Verificação de reset a cada 1 minuto
+    startResetCheckTimer() {
+        setInterval(async () => {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const userId = urlParams.get('userId') || localStorage.getItem('user_id');
+                
+                if (!userId) return;
+                
+                const response = await fetch(`/api/stats/user/${userId}`);
+                if (!response.ok) return;
+                
+                const data = await response.json();
+                const impressions = data.total_impressions || 0;
+                const clicks = data.total_clicks || 0;
+                const sessionExpired = data.session_expired || false;
+                
+                // Se resetou (ambos voltaram a 0) OU sessão expirou
+                if ((impressions === 0 && clicks === 0) || sessionExpired) {
+                    console.log('[RESET] Dados resetados ou sessão expirou! Redirecionando...');
+                    if (this.isRunning) {
+                        this.stop();
+                    }
+                    localStorage.removeItem('user_logged_in');
+                    localStorage.removeItem('user_id');
+                    localStorage.removeItem('user_email');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                }
+            } catch (error) {
+                console.error('[RESET] Erro ao verificar reset:', error);
+            }
+        }, 60000); // 60000ms = 1 minuto
+        
+        console.log('[RESET] Timer de verificação iniciado (verifica a cada 1 minuto)');
+    }
+
 }
 
 // Inicializar aplicação quando DOM estiver carregado
