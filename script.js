@@ -31,6 +31,7 @@ class PixAssistindoManager {
         this.stopBtn = document.getElementById('stopBtn');
         this.clearBtn = document.getElementById('clearBtn');
         this.manualBtn = document.getElementById('manualBtn');
+        if (this.manualBtn) this.manualBtn.disabled = true;
         this.autoScrollBtn = document.getElementById('autoScrollBtn');
         
         // Status elements
@@ -560,7 +561,7 @@ class PixAssistindoManager {
         // Atualizar botões
         this.startBtn.disabled = this.isRunning;
         this.stopBtn.disabled = !this.isRunning;
-        this.manualBtn.disabled = this.isRunning;
+        // this.manualBtn.disabled = this.isRunning; // Mantido desabilitado
         
         // Atualizar inputs
         this.emailInput.disabled = this.isRunning;

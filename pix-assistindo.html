@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pix Assistindo Manager</title>
-    <link rel="stylesheet" href="pix-style.css">
+    <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
     <meta name="description" content="Gerenciador de saldo e missões para o sistema Pix Assistindo">
@@ -22,10 +22,6 @@
                 <div class="status-indicator">
                     <div id="statusDot" class="status-dot stopped"></div>
                     <span id="statusText" class="status-text">Parado</span>
-                </div>
-                <div class="timer-display" style="background: rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 12px; margin-left: 16px;">
-                    <span style="font-size: 14px; opacity: 0.8;">Tempo de Uso:</span>
-                    <span id="sessionTimer" style="font-size: 18px; font-weight: bold; margin-left: 8px;">00:00:00</span>
                 </div>
             </div>
         </header>
@@ -49,7 +45,7 @@
                 <div class="form-group">
                     <label for="interval">Intervalo (segundos):</label>
                     <div class="slider-container">
-                        <input type="range" id="interval" min="60" max="300" value="60" step="10">
+                        <input type="range" id="interval" min="30" max="300" value="60" step="10">
                         <span id="intervalValue" class="slider-value">60</span>
                     </div>
                 </div>
@@ -66,7 +62,10 @@
                         <span class="btn-icon">🗑️</span>
                         Limpar Log
                     </button>
-
+                    <button id="manualBtn" class="btn btn-accent">
+                        <span class="btn-icon">🎯</span>
+                        Anúncio Manual
+                    </button>
                 </div>
             </section>
 
