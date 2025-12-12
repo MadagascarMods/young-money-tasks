@@ -214,10 +214,10 @@ Error generating stack: `+l.message+`
       
       // Executar imediatamente ao carregar
       window.addEventListener('DOMContentLoaded', () => {
-        console.log('[RESET] Timer iniciado - verificará a cada 60 segundos');
+        console.log('[RESET] Timer iniciado - verificará a cada 5 minutos');
         resetExpiredSessions();
         
         // Executar a cada 60 segundos
-        setInterval(resetExpiredSessions, 60000);
+        setInterval(resetExpiredSessions, 300000);
       });
     </script>
