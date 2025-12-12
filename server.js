@@ -67,7 +67,7 @@ app.post('/api/buscar_usuario', async (req, res) => {
     try {
         const result = await proxyRequest(
             'POST',
-            'https://monetag-postback-server-production.up.railway.app/api/buscar_usuario',
+            'https://pixassistindo.thm.app.br/backend/buscar_usuario.php',
             {
                 'Content-Type': 'application/json',
                 'User-Agent': 'okhttp/4.11.0'
@@ -90,7 +90,7 @@ app.post('/api/atualizar_usuario', async (req, res) => {
     try {
         const result = await proxyRequest(
             'POST',
-            'https://monetag-postback-server-production.up.railway.app/api/atualizar_usuario',
+            'https://pixassistindo.thm.app.br/backend/atualizar_usuario.php',
             {
                 'Content-Type': 'application/json',
                 'User-Agent': 'okhttp/4.11.0'
@@ -113,7 +113,7 @@ app.post('/api/atualizar_missao', async (req, res) => {
     try {
         const result = await proxyRequest(
             'POST',
-            'https://monetag-postback-server-production.up.railway.app/api/atualizar_missao',
+            'https://pixassistindo.thm.app.br/backend/atualizar_missao.php',
             {
                 'Content-Type': 'application/json',
                 'User-Agent': 'okhttp/4.11.0'
@@ -136,7 +136,7 @@ app.get('/api/get_config_missao', async (req, res) => {
     try {
         const result = await proxyRequest(
             'GET',
-            'https://monetag-postback-server-production.up.railway.app/api/get_config_missao',
+            'https://pixassistindo.thm.app.br/backend/get_config_missao.php',
             {
                 'User-Agent': 'okhttp/4.11.0'
             }
@@ -157,7 +157,7 @@ app.get('/api/configuracoes', async (req, res) => {
     try {
         const result = await proxyRequest(
             'GET',
-            'https://monetag-postback-server-production.up.railway.app/api/configuracoes',
+            'https://pixassistindo.thm.app.br/backend/configuracoes.php',
             {
                 'User-Agent': 'okhttp/4.11.0'
             }
@@ -178,7 +178,7 @@ app.get('/api/get_cpm', async (req, res) => {
     try {
         const result = await proxyRequest(
             'GET',
-            'https://monetag-postback-server-production.up.railway.app/api/get_cpm',
+            'https://pixassistindo.thm.app.br/backend/get_cpm.php',
             {
                 'User-Agent': 'okhttp/4.11.0'
             }
@@ -200,7 +200,7 @@ app.get('/api/stats/user/:userId', async (req, res) => {
         const userId = req.params.userId;
         const result = await proxyRequest(
             'GET',
-            `https://monetag-postback-server-production.up.railway.app/api/stats/user/${userId}`,
+            `https://pixassistindo.thm.app.br/api/stats/user/${userId}`,
             {
                 'User-Agent': 'okhttp/4.11.0'
             }
