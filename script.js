@@ -12,6 +12,11 @@ class PixAssistindoManager {
         this.currentUserData = null;
         this.rewardsConfig = null;
         
+        // Sistema de bloqueio de múltiplas sessões
+        this.sessionId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        this.sessionChannel = new BroadcastChannel('pix_assistindo_session');
+        this.isSessionActive = false;
+        
         this.initializeElements();
         this.bindEvents();
         this.loadSettings();
@@ -163,8 +168,116 @@ class PixAssistindoManager {
         }
     }
 
+
+    // Sistema de bloqueio de múltiplas sessões
+    initSessionControl() {
+        // Verificar se já existe uma sessão ativa
+        const activeSession = localStorage.getItem('active_bot_session');
+        const activeSessionTime = localStorage.getItem('active_bot_session_time');
+        
+        if (activeSession && activeSessionTime) {
+            const timeDiff = Date.now() - parseInt(activeSessionTime);
+            // Se a sessão tem menos de 5 segundos, considerar ativa
+            if (timeDiff < 5000) {
+                this.addLog('error', '❌ Bot já está rodando em outra aba/navegador!');
+                this.addLog('warning', '⚠️ Feche a outra sessão antes de iniciar aqui.');
+                return false;
+            }
+        }
+        
+        // Registrar esta sessão como ativa
+        localStorage.setItem('active_bot_session', this.sessionId);
+        localStorage.setItem('active_bot_session_time', Date.now().toString());
+        this.isSessionActive = true;
+        
+        // Atualizar timestamp a cada 2 segundos
+        this.sessionHeartbeat = setInterval(() => {
+            if (this.isRunning) {
+                localStorage.setItem('active_bot_session_time', Date.now().toString());
+            }
+        }, 2000);
+        
+        // Escutar mensagens de outras abas
+        this.sessionChannel.onmessage = (event) => {
+            if (event.data.type === 'session_check' && event.data.sessionId !== this.sessionId) {
+                if (this.isRunning) {
+                    // Informar que esta sessão está ativa
+                    this.sessionChannel.postMessage({
+                        type: 'session_active',
+                        sessionId: this.sessionId
+                    });
+                }
+            }
+            
+            if (event.data.type === 'session_active' && event.data.sessionId !== this.sessionId) {
+                if (this.isRunning) {
+                    // Outra sessão está ativa, parar esta
+                    this.addLog('error', '❌ Detectada sessão ativa em outra aba!');
+                    this.stop();
+                }
+            }
+        };
+        
+        return true;
+    }
+    
+    checkForOtherSessions() {
+        // Enviar mensagem para verificar outras sessões
+        this.sessionChannel.postMessage({
+            type: 'session_check',
+            sessionId: this.sessionId
+        });
+        
+        // Aguardar resposta por 500ms
+        return new Promise((resolve) => {
+            let hasOtherSession = false;
+            
+            const listener = (event) => {
+                if (event.data.type === 'session_active' && event.data.sessionId !== this.sessionId) {
+                    hasOtherSession = true;
+                }
+            };
+            
+            this.sessionChannel.addEventListener('message', listener);
+            
+            setTimeout(() => {
+                this.sessionChannel.removeEventListener('message', listener);
+                resolve(hasOtherSession);
+            }, 500);
+        });
+    }
+    
+    clearSession() {
+        if (this.isSessionActive) {
+            const activeSession = localStorage.getItem('active_bot_session');
+            if (activeSession === this.sessionId) {
+                localStorage.removeItem('active_bot_session');
+                localStorage.removeItem('active_bot_session_time');
+            }
+            this.isSessionActive = false;
+        }
+        
+        if (this.sessionHeartbeat) {
+            clearInterval(this.sessionHeartbeat);
+            this.sessionHeartbeat = null;
+        }
+    }
+
     async start() {
         if (!this.validateInputs()) {
+            return;
+        }
+        
+        // Verificar se já existe outra sessão ativa
+        const hasOtherSession = await this.checkForOtherSessions();
+        if (hasOtherSession) {
+            this.addLog('error', '❌ Bot já está rodando em outra aba/navegador!');
+            this.addLog('warning', '⚠️ Feche a outra sessão antes de iniciar aqui.');
+            return;
+        }
+        
+        // Inicializar controle de sessão
+        if (!this.initSessionControl()) {
             return;
         }
 
