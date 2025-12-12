@@ -263,21 +263,77 @@ class PixAssistindoManager {
         }
     }
 
+
+    // Sistema ROBUSTO de bloqueio de múltiplas abas
+    startTabLockMonitor() {
+        // Verificar a cada 1 segundo se há outra aba rodando
+        this.lockCheckInterval = setInterval(() => {
+            if (this.isRunning) {
+                const activeLock = localStorage.getItem('bot_active_lock');
+                const lockTime = localStorage.getItem('bot_lock_time');
+                
+                if (activeLock && activeLock !== this.tabId) {
+                    // Outra aba está rodando
+                    const timeDiff = Date.now() - parseInt(lockTime || '0');
+                    if (timeDiff < 3000) {
+                        // Lock ainda válido, parar esta aba
+                        this.addLog('error', '❌ Outra aba assumiu o controle do bot!');
+                        this.forceStop();
+                    }
+                }
+                
+                // Renovar nosso lock
+                localStorage.setItem('bot_active_lock', this.tabId);
+                localStorage.setItem('bot_lock_time', Date.now().toString());
+            }
+        }, 1000);
+    }
+    
+    acquireLock() {
+        const activeLock = localStorage.getItem('bot_active_lock');
+        const lockTime = localStorage.getItem('bot_lock_time');
+        
+        if (activeLock && lockTime) {
+            const timeDiff = Date.now() - parseInt(lockTime);
+            if (timeDiff < 3000) {
+                // Lock ainda válido
+                this.addLog('error', '❌ Bot já está rodando em outra aba!');
+                this.addLog('warning', '⚠️ Feche a outra aba antes de iniciar aqui.');
+                return false;
+            }
+        }
+        
+        // Adquirir lock
+        localStorage.setItem('bot_active_lock', this.tabId);
+        localStorage.setItem('bot_lock_time', Date.now().toString());
+        return true;
+    }
+    
+    releaseLock() {
+        const activeLock = localStorage.getItem('bot_active_lock');
+        if (activeLock === this.tabId) {
+            localStorage.removeItem('bot_active_lock');
+            localStorage.removeItem('bot_lock_time');
+        }
+    }
+    
+    forceStop() {
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+        }
+        this.isRunning = false;
+        this.releaseLock();
+        this.updateUI();
+    }
+
     async start() {
         if (!this.validateInputs()) {
             return;
         }
         
-        // Verificar se já existe outra sessão ativa
-        const hasOtherSession = await this.checkForOtherSessions();
-        if (hasOtherSession) {
-            this.addLog('error', '❌ Bot já está rodando em outra aba/navegador!');
-            this.addLog('warning', '⚠️ Feche a outra sessão antes de iniciar aqui.');
-            return;
-        }
-        
-        // Inicializar controle de sessão
-        if (!this.initSessionControl()) {
+        // Tentar adquirir lock
+        if (!this.acquireLock()) {
             return;
         }
 
@@ -714,49 +770,66 @@ class PixAssistindoManager {
         }
     }
 
+    // Verificação de reset a cada 1 minuto
+    startResetCheckTimer() {
+        // Verificar imediatamente ao carregar
+        this.checkForReset();
+        
+        // Depois verificar a cada 60 segundos
+        setInterval(async () => {
+            await this.checkForReset();
+        }, 60000); // 60 segundos
+        
+        console.log('[RESET] Timer de verificação iniciado (verifica a cada 1 minuto)');
+    }
+    
+    async checkForReset() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('userId') || localStorage.getItem('user_id');
+            
+            if (!userId) return;
+            
+            const response = await fetch(`/api/stats/user/${userId}`);
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            const impressions = data.total_impressions || 0;
+            const clicks = data.total_clicks || 0;
+            
+            console.log(`[RESET] Verificando: impressions=${impressions}, clicks=${clicks}`);
+            
+            // Se ambos são 0, significa que resetou
+            if (impressions === 0 && clicks === 0) {
+                console.log('[RESET] ⚠️ Tarefas resetadas! Redirecionando para página de tarefas...');
+                
+                if (this.isRunning) {
+                    this.forceStop();
+                }
+                
+                // Limpar dados
+                localStorage.removeItem('user_logged_in');
+                localStorage.removeItem('user_id');
+                localStorage.removeItem('user_email');
+                this.releaseLock();
+                
+                // Redirecionar após 1 segundo
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
+            }
+        } catch (error) {
+            console.error('[RESET] Erro ao verificar reset:', error);
+        }
+    }
+
     updateStats() {
         this.requestCount.textContent = this.stats.requests;
         this.successCount.textContent = this.stats.successes;
         this.errorCount.textContent = this.stats.errors;
         this.totalEarnings.textContent = `R$ ${this.stats.totalEarnings.toFixed(5)}`;
     }
-    // Verificação de reset a cada 1 minuto
-    startResetCheckTimer() {
-        setInterval(async () => {
-            try {
-                const urlParams = new URLSearchParams(window.location.search);
-                const userId = urlParams.get('userId') || localStorage.getItem('user_id');
-                
-                if (!userId) return;
-                
-                const response = await fetch(`/api/stats/user/${userId}`);
-                if (!response.ok) return;
-                
-                const data = await response.json();
-                const impressions = data.total_impressions || 0;
-                const clicks = data.total_clicks || 0;
-                const sessionExpired = data.session_expired || false;
-                
-                // Se resetou (ambos voltaram a 0) OU sessão expirou
-                if ((impressions === 0 && clicks === 0) || sessionExpired) {
-                    console.log('[RESET] Dados resetados ou sessão expirou! Redirecionando...');
-                    if (this.isRunning) {
-                        this.stop();
-                    }
-                    localStorage.removeItem('user_logged_in');
-                    localStorage.removeItem('user_id');
-                    localStorage.removeItem('user_email');
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 1000);
-                }
-            } catch (error) {
-                console.error('[RESET] Erro ao verificar reset:', error);
-            }
-        }, 60000); // 60000ms = 1 minuto
-        
-        console.log('[RESET] Timer de verificação iniciado (verifica a cada 1 minuto)');
-    }
+
 
 }
 
