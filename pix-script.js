@@ -619,7 +619,7 @@ class PixAssistindoManager {
         if (!userId) {
             console.log('[VALIDAÇÃO] ❌ User ID não encontrado');
             alert('Você precisa fazer login primeiro!');
-            window.location.href = '/login.html';
+            window.location.href = '/';
             return;
         }
         
@@ -642,7 +642,7 @@ class PixAssistindoManager {
             if (impressions === 0 && clicks === 0) {
                 console.log('[VALIDAÇÃO] ⚠️ Tracking resetado! Redirecionando para login...');
                 alert('Suas tarefas foram resetadas. Faça login novamente.');
-                window.location.href = '/login.html';
+                window.location.href = '/';
                 return;
             }
             
@@ -761,7 +761,7 @@ class PixAssistindoManager {
                     localStorage.removeItem('user_email');
                     
                     alert('Suas tarefas foram resetadas. Faça login novamente.');
-                    window.location.href = '/login.html';
+                    window.location.href = '/';
                 }
             } catch (error) {
                 console.error('[TIMER] Erro ao verificar:', error);
