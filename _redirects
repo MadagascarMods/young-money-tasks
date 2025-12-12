@@ -1,0 +1,1 @@
+/api/*  https://monetag-postback-server-production.up.railway.app/api/:splat  200!
