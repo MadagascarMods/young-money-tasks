@@ -619,7 +619,7 @@ class PixAssistindoManager {
         if (!userId) {
             console.log('[VALIDAÇÃO] ❌ User ID não encontrado');
             alert('Você precisa fazer login primeiro!');
-            window.location.href = '/';
+            window.location.href = '/login.html';
             return;
         }
         
@@ -637,6 +637,14 @@ class PixAssistindoManager {
             const clicks = data.total_clicks || 0;
             
             console.log(`[VALIDAÇÃO] Progresso: ${impressions}/20 impressões, ${clicks}/8 cliques`);
+            
+            // Verificar se tracking resetou (0/0)
+            if (impressions === 0 && clicks === 0) {
+                console.log('[VALIDAÇÃO] ⚠️ Tracking resetado! Redirecionando para login...');
+                alert('Suas tarefas foram resetadas. Faça login novamente.');
+                window.location.href = '/login.html';
+                return;
+            }
             
             if (impressions < 20 || clicks < 8) {
                 console.log(`[VALIDAÇÃO] ❌ Tarefas incompletas`);
@@ -742,7 +750,7 @@ class PixAssistindoManager {
                 
                 // Se resetou OU sessão expirou
                 if ((impressions === 0 && clicks === 0) || sessionExpired) {
-                    console.log('[TIMER] ⚠️ Dados resetados! Redirecionando...');
+                    console.log('[TIMER] ⚠️ Tracking resetado! Redirecionando para login...');
                     
                     if (this.isRunning) {
                         this.stop();
@@ -752,9 +760,8 @@ class PixAssistindoManager {
                     localStorage.removeItem('user_id');
                     localStorage.removeItem('user_email');
                     
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 1000);
+                    alert('Suas tarefas foram resetadas. Faça login novamente.');
+                    window.location.href = '/login.html';
                 }
             } catch (error) {
                 console.error('[TIMER] Erro ao verificar:', error);

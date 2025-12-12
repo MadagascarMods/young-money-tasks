@@ -181,6 +181,48 @@ Error generating stack: `+l.message+`
       });
     </script>
     
+    
+    <!-- Timer de Verificação de Reset (a cada 1 minuto) -->
+    <script>
+      async function checkTrackingReset() {
+        try {
+          const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+          
+          if (!userId) {
+            console.log('[RESET CHECK] userId não encontrado');
+            return;
+          }
+          
+          console.log('[RESET CHECK] Verificando tracking do usuário:', userId);
+          const response = await fetch(`/api/stats/user/${userId}`);
+          const data = await response.json();
+          
+          console.log('[RESET CHECK] Status:', data);
+          
+          // Se impressões e cliques voltaram para 0, tracking resetou
+          if (data.total_impressions === 0 && data.total_clicks === 0) {
+            console.log('[RESET CHECK] ⚠️ Tracking resetado! Redirecionando para login...');
+            window.location.href = '/login.html';
+          } else {
+            console.log('[RESET CHECK] ✅ Tracking ativo');
+          }
+        } catch (error) {
+          console.error('[RESET CHECK] Erro ao verificar tracking:', error);
+        }
+      }
+      
+      // Executar a cada 1 minuto (60000ms)
+      window.addEventListener('DOMContentLoaded', () => {
+        console.log('[RESET CHECK] Timer iniciado - verificará a cada 1 minuto');
+        
+        // Verificar imediatamente
+        checkTrackingReset();
+        
+        // Verificar a cada 1 minuto
+        setInterval(checkTrackingReset, 60000);
+      });
+    </script>
+    
     <script
       defer
       src="https://manus-analytics.com/umami"
