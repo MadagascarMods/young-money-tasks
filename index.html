@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Young Money - Baixe o App e Ganhe Prêmios!</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Background overlay -->
+    <div class="background-overlay"></div>
+    
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header with Logo -->
+        <header class="header">
+            <img src="logo.png" alt="Young Money Logo" class="logo">
+        </header>
+
+        <!-- Hero Section -->
+        <section class="hero">
+            <h1 class="title">Young Money</h1>
+            <p class="subtitle">Seu caminho para ganhar prêmios diários!</p>
+        </section>
+
+        <!-- Highlight Box -->
+        <section class="highlight-box">
+            <div class="highlight-icon">
+                <i class="fas fa-trophy"></i>
+            </div>
+            <h2>Conquiste o Topo do Ranking!</h2>
+            <p>Jogue, acumule pontos e fique entre os <strong>melhores do ranking</strong> para se destacar e ganhar a <strong>premiação diária</strong>! Quanto melhor sua posição, maiores são suas chances de ganhar prêmios incríveis todos os dias!</p>
+        </section>
+
+        <!-- Download Button -->
+        <section class="download-section">
+            <a href="young-money.apk" download class="download-btn">
+                <span class="download-icon"><i class="fas fa-download"></i></span>
+                <span class="download-text">DOWNLOAD</span>
+                <span class="download-subtext">Baixe o APK agora</span>
+            </a>
+        </section>
+
+        <!-- Social Groups Section -->
+        <section class="social-groups-section">
+            <h2 class="social-title">Entre nos Nossos Grupos</h2>
+            <p class="social-subtitle">Fique por dentro de todas as novidades!</p>
+            
+            <div class="social-buttons">
+                <a href="https://chat.whatsapp.com/Kx1yIiecYJw4Em7dUGLKsK" target="_blank" rel="noopener noreferrer" class="social-btn whatsapp-btn">
+                    <img src="whatsapp-icon.png" alt="WhatsApp" class="social-icon">
+                    <span class="social-text">Grupo WhatsApp</span>
+                </a>
+                <a href="https://t.me/+njlOOF_IhkUzZThh" target="_blank" rel="noopener noreferrer" class="social-btn telegram-btn">
+                    <img src="telegram-icon.png" alt="Telegram" class="social-icon">
+                    <span class="social-text">Grupo Telegram</span>
+                </a>
+            </div>
+        </section>
+
+        <!-- Screenshots Gallery -->
+        <section class="gallery-section">
+            <h2 class="gallery-title">Conheça o Aplicativo</h2>
+            <p class="gallery-subtitle">Veja as telas do Young Money</p>
+            
+            <div class="gallery-container">
+                <div class="gallery-main">
+                    <img src="screenshots/screen1.jpg" alt="Tela do App" id="mainImage" class="main-image">
+                </div>
+                
+                <div class="gallery-thumbnails">
+                    <img src="screenshots/screen1.jpg" alt="Tela 1" class="thumbnail active" onclick="changeImage(this, 'screenshots/screen1.jpg')">
+                    <img src="screenshots/screen2.jpg" alt="Tela 2" class="thumbnail" onclick="changeImage(this, 'screenshots/screen2.jpg')">
+                    <img src="screenshots/screen3.jpg" alt="Tela 3" class="thumbnail" onclick="changeImage(this, 'screenshots/screen3.jpg')">
+                    <img src="screenshots/screen4.jpg" alt="Tela 4" class="thumbnail" onclick="changeImage(this, 'screenshots/screen4.jpg')">
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="features-section">
+            <div class="feature">
+                <div class="feature-icon">
+                    <i class="fas fa-gamepad"></i>
+                </div>
+                <h3>Jogue e Divirta-se</h3>
+                <p>Desafios diários para você se divertir</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h3>Ranking Diário</h3>
+                <p>Compita com outros jogadores</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <h3>Prêmios Reais</h3>
+                <p>Ganhe prêmios todos os dias</p>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2026 Young Money. Todos os direitos reservados.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
